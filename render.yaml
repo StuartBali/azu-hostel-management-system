@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: azu-hostel-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@azu.ac.ug
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL
+        sync: false
+      - key: DB_CREATE_DATABASE
+        value: "false"
+      - key: IMPORT_JSON_DATA
+        value: "false"
+      - key: FRONTEND_ORIGIN
+        value: http://localhost:5173
+  - type: static
+    name: azu-hostel-frontend
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: azu-hostel-api
+          envVarKey: RENDER_EXTERNAL_URL

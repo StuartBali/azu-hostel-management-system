@@ -1,0 +1,19 @@
+# Dependencies and generated output
+**/node_modules/
+**/dist/
+coverage/
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Local database migration data
+backend/data/store.json
+backend/data/store.json.tmp
+
+# Editor and operating-system files
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
