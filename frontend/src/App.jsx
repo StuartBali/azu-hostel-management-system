@@ -175,7 +175,7 @@ function Dashboard({ data, user, onNavigate, canWrite, canRead, canViewPayments 
     const beds = hostelRooms.reduce((s, r) => s + Number(r.occupied || 0), 0);
     return { label: h.name.replace(' Hostel', ''), value: capacity ? Math.round(beds / capacity * 100) : 0 };
   }), [data.hostels, rooms]);
-  return <><PageHeading eyebrow="MONDAY, 15 SEPTEMBER 2025" title={`Good morning, ${firstName}`} subtitle={`Signed in as ${user?.role || 'User'}. Here’s what’s happening across your campus accommodation today.`} action={<button className="button button-outline" onClick={() => onNavigate('Reports')}><Download size={16} /> Export overview</button>} />
+  return <><PageHeading eyebrow="MONDAY, 15 SEPTEMBER 2025" title={`Welcome, ${firstName}`} subtitle={`Signed in as ${user?.role || 'User'}. Here’s what’s happening across your campus accommodation today.`} action={<button className="button button-outline" onClick={() => onNavigate('Reports')}><Download size={16} /> Export overview</button>} />
     <section className={`stats-grid ${canViewPayments ? '' : 'stats-grid-three'}`}>
       <StatCard title="Registered students" value={students.length.toLocaleString()} note="+12% this semester" icon={GraduationCap} tone="blue" />
       <StatCard title="Total bed capacity" value={totalCapacity.toLocaleString()} note={`${rooms.length} rooms across campus`} icon={BedDouble} tone="violet" />
