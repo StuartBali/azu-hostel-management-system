@@ -33,7 +33,7 @@ services:
       - key: IMPORT_JSON_DATA
         value: "false"
       - key: FRONTEND_ORIGIN
-        value: http://localhost:5173
+        value: https://azu-hostel-frontend.onrender.com
   - type: web
     name: azu-hostel-frontend
     runtime: static

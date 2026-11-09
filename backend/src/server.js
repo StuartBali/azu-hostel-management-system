@@ -6,10 +6,12 @@ const store = require('./store');
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'local-development-secret-change-before-deployment');
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://azu-hostel-frontend.onrender.com',
+  ...(process.env.FRONTEND_ORIGIN || '').split(','),
+].map(origin => origin.trim()).filter(Boolean);
 const resources = new Set(['students', 'hostels', 'rooms', 'allocations', 'payments', 'maintenance', 'users']);
 const RESOURCE_ROLES = {
   students: { read: ['Administrator', 'Hostel Officer', 'Finance Officer', 'Warden'], write: ['Administrator', 'Hostel Officer'] },
