@@ -3,11 +3,11 @@ import {
   Activity, ArrowDownRight, ArrowUpRight, BedDouble, Bell, Building2,
   CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp,
   ClipboardList, CreditCard, Download, FileBarChart, GraduationCap, LayoutDashboard,
-  LogOut, Menu, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, UserRound,
+  History, LogOut, Menu, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, UserRound,
   Users, Wrench, X,
 } from 'lucide-react';
 
-const configuredApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+const configuredApiUrl = (import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000`).replace(/\/+$/, '');
 const API = configuredApiUrl.endsWith('/api') ? configuredApiUrl : `${configuredApiUrl}/api`;
 const NAV = [
   { label: 'Dashboard', icon: LayoutDashboard },
@@ -18,6 +18,7 @@ const NAV = [
   { label: 'Payments', icon: CreditCard },
   { label: 'Maintenance', icon: Wrench },
   { label: 'Reports', icon: FileBarChart },
+  { label: 'Audit Log', icon: History },
   { label: 'User management', icon: ShieldCheck },
   { label: 'Settings', icon: Settings },
 ];
@@ -42,7 +43,7 @@ const COLUMNS = {
   Hostels: [['name', 'Hostel name'], ['location', 'Location'], ['totalRooms', 'Total rooms'], ['warden', 'Warden']],
   Rooms: [['hostel', 'Hostel'], ['roomNo', 'Room no.'], ['capacity', 'Capacity'], ['occupied', 'Occupied'], ['status', 'Status']],
   Allocations: [['student', 'Student'], ['room', 'Room'], ['hostel', 'Hostel'], ['date', 'Date allocated'], ['term', 'Academic year']],
-  Payments: [['student', 'Student'], ['amount', 'Amount (UGX)'], ['method', 'Method'], ['date', 'Date'], ['status', 'Status']],
+  Payments: [['student', 'Student'], ['amount', 'Amount (SSP)'], ['method', 'Method'], ['date', 'Date'], ['status', 'Status']],
   Maintenance: [['requestBy', 'Requested by'], ['issue', 'Issue'], ['location', 'Location'], ['date', 'Date'], ['status', 'Status']],
   'User management': [['name', 'Name'], ['email', 'Email'], ['role', 'Role'], ['status', 'Status']],
 };
@@ -111,7 +112,7 @@ function Login({ onLogin }) {
         <button className="button button-primary login-submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'} <ChevronRight size={17} /></button>
       </form>
       <div className="login-hint"><CircleHelp size={15} /> Use the account credentials provided by your administrator.</div>
-    </div><span className="login-copyright">© 2025 Africa Zeal University</span></section>
+    </div><span className="login-copyright">© 2026 Africa Zeal University</span></section>
   </main>;
 }
 
@@ -121,7 +122,7 @@ function Sidebar({ active, setActive, user, onLogout, open, onClose }) {
     <aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
       <div className="sidebar-brand"><Brand /></div>
       <div className="nav-caption">WORKSPACE</div>
-      <nav>{NAV.filter(({ label }) => label === 'Settings'
+      <nav>{NAV.filter(({ label }) => label === 'Settings' || label === 'Audit Log'
         ? user?.role === 'Administrator'
         : !RESOURCE[label] || ROLE_READS[user?.role]?.includes(RESOURCE[label]))
         .map(({ label, icon: Icon }) => <button key={label} onClick={() => { setActive(label); onClose(); }} className={`nav-item ${active === label ? 'nav-active' : ''}`}><Icon size={18} /><span>{label}</span>{label === 'Maintenance' && <b className="nav-count">3</b>}</button>)}</nav>
@@ -178,7 +179,7 @@ function Dashboard({ data, onNavigate, canWrite, canRead, canViewPayments }) {
       <StatCard title="Registered students" value={students.length.toLocaleString()} note="+12% this semester" icon={GraduationCap} tone="blue" />
       <StatCard title="Total bed capacity" value={totalCapacity.toLocaleString()} note={`${rooms.length} rooms across campus`} icon={BedDouble} tone="violet" />
       <StatCard title="Occupancy rate" value={`${pct}%`} note={`${occupied} beds currently occupied`} icon={Building2} tone="gold" />
-      {canViewPayments && <StatCard title="Payments received" value={`UGX ${(paid / 1000000).toFixed(1)}m`} note="This academic year" icon={CreditCard} tone="green" />}
+      {canViewPayments && <StatCard title="Payments received" value={`SSP ${(paid / 1000000).toFixed(1)}m`} note="This academic year" icon={CreditCard} tone="green" />}
     </section>
     <section className="dashboard-grid">
       <article className="panel occupancy-panel"><div className="panel-heading"><div><h2>Hostel occupancy</h2><p>Bed utilization by residence</p></div><button className="select-button" onClick={() => onNavigate('Reports')}>This semester <ChevronDown size={14} /></button></div><OccupancyChart data={occupancy} />
@@ -187,7 +188,7 @@ function Dashboard({ data, onNavigate, canWrite, canRead, canViewPayments }) {
         <div className="activity-list">{[
           { icon: UserRound, color: 'blue', title: 'New student registered', desc: students.at(-1)?.name || 'New student account created', time: 'Just now' },
           { icon: BedDouble, color: 'violet', title: 'Room allocation updated', desc: data.allocations?.at(-1)?.room ? `${data.allocations.at(-1).room} · ${data.allocations.at(-1).student}` : 'A room has been allocated', time: '24 min ago' },
-          ...(canViewPayments ? [{ icon: CreditCard, color: 'green', title: 'Payment received', desc: payments.at(-1) ? `UGX ${Number(payments.at(-1).amount).toLocaleString()} · ${payments.at(-1).student}` : 'Hostel payment recorded', time: '1 hr ago' }] : []),
+          ...(canViewPayments ? [{ icon: CreditCard, color: 'green', title: 'Payment received', desc: payments.at(-1) ? `SSP ${Number(payments.at(-1).amount).toLocaleString()} · ${payments.at(-1).student}` : 'Hostel payment recorded', time: '1 hr ago' }] : []),
           { icon: Wrench, color: 'gold', title: 'Maintenance request', desc: maintenance.at(-1)?.issue || 'New maintenance request received', time: '2 hrs ago' },
         ].map((item, i) => <div className="activity-item" key={i}><div className={`activity-icon ${item.color}`}><item.icon size={16} /></div><div className="activity-copy"><strong>{item.title}</strong><span>{item.desc}</span></div><time>{item.time}</time></div>)}</div>
       </article>
@@ -243,7 +244,7 @@ function DataPage({ page, items, allData, onRefresh, notify, canWrite }) {
     <PageHeading eyebrow="ACCOMMODATION" title={titleMap[page] || page} subtitle={subtitleMap[page] || `Manage ${page.toLowerCase()} for Africa Zeal University.`} action={canWrite && <button className="button button-primary" onClick={() => setModal({})}><Plus size={17} /> {page === 'Maintenance' ? 'New request' : page === 'Payments' ? 'Record payment' : page === 'Allocations' ? 'New allocation' : `Add ${page === 'Students' ? 'student' : page === 'Hostels' ? 'hostel' : page === 'Rooms' ? 'room' : 'user'}`}</button>} />
     <section className="panel data-panel"><div className="data-toolbar"><div className="search-field"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${page.toLowerCase()}…`} /></div><button className="button button-outline filter-button" onClick={() => setSearch('')}><SlidersHorizontal size={16} /> Clear filters</button><span className="record-count">{filtered.length} records</span></div>
       <div className="table-scroll"><table><thead><tr>{fields.map(([, label]) => <th key={label}>{label}</th>)}{canWrite && <th className="actions-heading">Actions</th>}</tr></thead><tbody>
-        {filtered.map(row => <tr key={row.id}>{fields.map(([key]) => <td key={key}>{key === 'status' ? <Badge value={row[key]} /> : key === 'amount' ? `UGX ${Number(row[key] || 0).toLocaleString()}` : row[key] ?? '—'}</td>)}{canWrite && <td><div className="row-actions"><button title="Edit record" onClick={() => setModal(row)}><Settings size={15} /></button><button title="Delete record" className="delete-action" onClick={() => remove(row)}><X size={15} /></button></div></td>}</tr>)}
+        {filtered.map(row => <tr key={row.id}>{fields.map(([key]) => <td key={key}>{key === 'status' ? <Badge value={row[key]} /> : key === 'amount' ? `SSP ${Number(row[key] || 0).toLocaleString()}` : row[key] ?? '—'}</td>)}{canWrite && <td><div className="row-actions"><button title="Edit record" onClick={() => setModal(row)}><Settings size={15} /></button><button title="Delete record" className="delete-action" onClick={() => remove(row)}><X size={15} /></button></div></td>}</tr>)}
         {!filtered.length && <tr><td colSpan={fields.length + (canWrite ? 1 : 0)} className="empty-state"><div><Search size={24} /><strong>No records found</strong><span>Try a different search or add a new record.</span></div></td></tr>}
       </tbody></table></div>
       <div className="table-footer"><span>Showing <strong>{filtered.length ? 1 : 0}–{filtered.length}</strong> of <strong>{items.length}</strong> records</span><div><button className="pagination-button" disabled><ChevronLeft size={16} /></button><button className="pagination-button current-page">1</button><button className="pagination-button" disabled><ChevronRight size={16} /></button></div></div>
@@ -276,9 +277,93 @@ function Reports({ data, canViewPayments }) {
   const totalCapacity = rooms.reduce((sum, r) => sum + Number(r.capacity || 0), 0);
   const occupied = rooms.reduce((sum, r) => sum + Number(r.occupied || 0), 0);
   return <><PageHeading eyebrow="INSIGHTS & ANALYTICS" title="Reports" subtitle="A clear picture of hostel operations across the university." action={<button className="button button-outline" onClick={() => window.print()}><Download size={16} /> Print report</button>} />
-    <div className="report-stats"><StatCard title="Total students" value={students.length} note="Across all programmes" icon={GraduationCap} tone="blue" /><StatCard title="Overall occupancy" value={`${totalCapacity ? Math.round(occupied / totalCapacity * 100) : 0}%`} note={`${occupied} of ${totalCapacity} beds`} icon={Building2} tone="gold" /><StatCard title="Total collected" value={`UGX ${(payments.filter(p => p.status === 'Paid').reduce((s, p) => s + Number(p.amount), 0) / 1000000).toFixed(1)}m`} note="Confirmed payments" icon={CreditCard} tone="green" /></div>
+    <div className="report-stats"><StatCard title="Total students" value={students.length} note="Across all programmes" icon={GraduationCap} tone="blue" /><StatCard title="Overall occupancy" value={`${totalCapacity ? Math.round(occupied / totalCapacity * 100) : 0}%`} note={`${occupied} of ${totalCapacity} beds`} icon={Building2} tone="gold" /><StatCard title="Total collected" value={`SSP ${(payments.filter(p => p.status === 'Paid').reduce((s, p) => s + Number(p.amount), 0) / 1000000).toFixed(1)}m`} note="Confirmed payments" icon={CreditCard} tone="green" /></div>
     <div className="report-grid"><article className="panel report-panel"><div className="panel-heading"><div><h2>Occupancy by hostel</h2><p>Current utilization against available bed capacity</p></div></div><div className="report-bars">{hostels.map((h, i) => { const hostelRooms = rooms.filter(r => r.hostel === h.name); const capacity = hostelRooms.reduce((s, r) => s + Number(r.capacity), 0); const beds = hostelRooms.reduce((s, r) => s + Number(r.occupied), 0); const value = capacity ? Math.round(beds / capacity * 100) : 0; return <div className="report-bar-item" key={h.id}><div><strong>{h.name}</strong><span>{value}%</span></div><div className="report-track"><i className={`report-fill bar-${i % 4}`} style={{ width: `${value}%` }} /></div><small>{beds} of {capacity} beds occupied</small></div>; })}</div></article>
-      {canViewPayments && <article className="panel report-panel"><div className="panel-heading"><div><h2>Payment summary</h2><p>Payment status breakdown</p></div></div><div className="payment-summary">{['Paid', 'Pending', 'Overdue'].map(status => { const count = payments.filter(x => x.status === status).length; const amount = payments.filter(x => x.status === status).reduce((s, x) => s + Number(x.amount), 0); return <div key={status}><Badge value={status} /><span>{count} payments</span><strong>UGX {amount.toLocaleString()}</strong></div>; })}</div></article>}</div>
+      {canViewPayments && <article className="panel report-panel"><div className="panel-heading"><div><h2>Payment summary</h2><p>Payment status breakdown</p></div></div><div className="payment-summary">{['Paid', 'Pending', 'Overdue'].map(status => { const count = payments.filter(x => x.status === status).length; const amount = payments.filter(x => x.status === status).reduce((s, x) => s + Number(x.amount), 0); return <div key={status}><Badge value={status} /><span>{count} payments</span><strong>SSP {amount.toLocaleString()}</strong></div>; })}</div></article>}</div>
+  </>;
+}
+
+function AuditLog() {
+  const [entries, setEntries] = useState([]);
+  const [search, setSearch] = useState('');
+  const [action, setAction] = useState('');
+  const [resource, setResource] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setError('');
+      const params = new URLSearchParams({ limit: '500' });
+      if (search.trim()) params.set('search', search.trim());
+      if (action) params.set('action', action);
+      if (resource) params.set('resource', resource);
+      try {
+        const result = await request(`/audit-logs?${params}`);
+        if (!cancelled) setEntries(result);
+      } catch (requestError) {
+        if (!cancelled) setError(requestError.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 200);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [search, action, resource, reload]);
+
+  const actionLabels = {
+    login_success: 'Signed in',
+    login_failed: 'Failed sign-in',
+    logout: 'Signed out',
+    create: 'Created',
+    update: 'Updated',
+    delete: 'Deleted',
+  };
+  const resourceLabels = {
+    authentication: 'Authentication',
+    settings: 'System settings',
+    students: 'Students',
+    hostels: 'Hostels',
+    rooms: 'Rooms',
+    allocations: 'Allocations',
+    payments: 'Payments',
+    maintenance: 'Maintenance',
+    users: 'User management',
+  };
+  function formatDate(value) {
+    const date = new Date(`${String(value).replace(' ', 'T')}Z`);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  }
+
+  return <>
+    <PageHeading eyebrow="ADMINISTRATION" title="Audit Log" subtitle="Review sign-ins and changes made by staff across the system." action={<button className="button button-outline" onClick={() => setReload(value => value + 1)}><History size={16} /> Refresh</button>} />
+    <section className="panel data-panel audit-panel">
+      <div className="data-toolbar audit-toolbar">
+        <div className="search-field"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search users, records or activity" /></div>
+        <select aria-label="Filter by action" value={action} onChange={event => setAction(event.target.value)}>
+          <option value="">All actions</option><option value="login_success">Signed in</option><option value="login_failed">Failed sign-in</option><option value="logout">Signed out</option><option value="create">Created</option><option value="update">Updated</option><option value="delete">Deleted</option>
+        </select>
+        <select aria-label="Filter by module" value={resource} onChange={event => setResource(event.target.value)}>
+          <option value="">All modules</option>{Object.entries(resourceLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <span className="record-count">{entries.length} events</span>
+      </div>
+      {error ? <div className="audit-error"><p>{error}</p><button className="button button-outline" onClick={() => setReload(value => value + 1)}>Try again</button></div> :
+        <div className="table-scroll"><table className="audit-table"><thead><tr><th>Date & time</th><th>User</th><th>Action</th><th>Module</th><th>Record / changed fields</th></tr></thead><tbody>
+          {loading ? <tr><td colSpan="5" className="empty-state">Loading audit activity…</td></tr> :
+            entries.map(entry => <tr key={entry.id}>
+              <td>{formatDate(entry.createdAt)}</td>
+              <td><strong>{entry.actorName || 'Unknown user'}</strong><small>{entry.actorEmail || 'Unrecognized account'}{entry.actorRole ? ` · ${entry.actorRole}` : ''}</small></td>
+              <td><span className={`audit-action audit-${entry.action}`}>{actionLabels[entry.action] || entry.action}</span><small>{entry.summary}</small></td>
+              <td>{resourceLabels[entry.resource] || entry.resource || '—'}</td>
+              <td>{entry.recordId || '—'}{entry.changedFields?.length > 0 && <small>Fields: {entry.changedFields.join(', ')}</small>}</td>
+            </tr>)}
+          {!loading && !entries.length && <tr><td colSpan="5" className="empty-state"><div><History size={24} /><strong>No activity found</strong><span>Try changing the search or filters.</span></div></td></tr>}
+        </tbody></table></div>}
+      {!error && <div className="table-footer"><span>Showing <strong>{entries.length}</strong> most recent events (up to 500)</span></div>}
+    </section>
   </>;
 }
 
@@ -321,12 +406,17 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const notify = useCallback((message, type = 'success') => setToast({ message, type }), []);
-  const logout = useCallback(() => {
+  const clearSession = useCallback(() => {
     setSession(null);
     localStorage.removeItem('azu-session');
     localStorage.removeItem('azu-user');
     setActive('Dashboard');
   }, []);
+  const logout = useCallback(async () => {
+    try { await request('/auth/logout', { method: 'POST' }); }
+    catch (error) { console.error('Unable to record the sign-out event.', error); }
+    finally { clearSession(); }
+  }, [clearSession]);
   const refresh = useCallback(async () => {
     setLoading(true); setLoadError('');
     try {
@@ -341,9 +431,9 @@ export default function App() {
   }, [user?.role]);
   useEffect(() => { if (user) refresh(); }, [user, refresh]);
   useEffect(() => {
-    window.addEventListener('azu-session-expired', logout);
-    return () => window.removeEventListener('azu-session-expired', logout);
-  }, [logout]);
+    window.addEventListener('azu-session-expired', clearSession);
+    return () => window.removeEventListener('azu-session-expired', clearSession);
+  }, [clearSession]);
   function handleLogin(result) {
     const nextSession = { user: result.user, token: result.token };
     setSession(nextSession);
@@ -353,7 +443,7 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />;
   const isAdministrator = user.role === 'Administrator';
   const currentPage = active in RESOURCE && !ROLE_READS[user.role]?.includes(RESOURCE[active]) ||
-    (active === 'Settings' && !isAdministrator) ? 'Dashboard' : active;
+    ((active === 'Settings' || active === 'Audit Log') && !isAdministrator) ? 'Dashboard' : active;
   const canWrite = Object.fromEntries(Object.entries(RESOURCE).map(([page, resource]) => [page, ROLE_WRITES[user.role]?.includes(resource) || false]));
   const canRead = Object.fromEntries(Object.entries(RESOURCE).map(([page, resource]) => [page, ROLE_READS[user.role]?.includes(resource) || false]));
   const canViewPayments = ROLE_READS[user.role]?.includes('payments') || false;
@@ -362,9 +452,10 @@ export default function App() {
       {loading ? <div className="loading-state"><div className="spinner" /><span>Loading your campus overview…</span></div> : loadError ? <div className="error-state"><div className="error-icon"><Activity size={21} /></div><h2>Couldn’t load your campus data</h2><p>{loadError}. Make sure the backend server is running.</p><button className="button button-primary" onClick={refresh}>Try again</button></div> :
         currentPage === 'Dashboard' ? <Dashboard data={data} onNavigate={setActive} canWrite={canWrite} canRead={canRead} canViewPayments={canViewPayments} /> :
           currentPage === 'Reports' ? <Reports data={data} canViewPayments={canViewPayments} /> :
+            currentPage === 'Audit Log' ? <AuditLog /> :
             currentPage === 'Settings' ? <SettingsPage initial={settings} onSave={saveSettings} notify={notify} /> :
               currentPage === 'Help & support' ? <><PageHeading eyebrow="SUPPORT" title="Help & support" subtitle="Get assistance with your Africa Zeal University hostel portal." /><div className="panel help-page"><div className="help-icon"><CircleHelp size={20} /></div><h2>We’re here to help.</h2><p>Contact the university accommodation office for assistance with the hostel management portal.</p><a href="mailto:hostels@azu.ac.ug">hostels@azu.ac.ug</a></div></> :
                 <DataPage key={currentPage} page={currentPage} items={data[RESOURCE[currentPage]] || []} allData={data} onRefresh={refresh} notify={notify} canWrite={canWrite[currentPage]} />}
-      <footer className="app-footer"><span>© 2025 Africa Zeal University</span><span>Hostel Management System <i /> Safe · Smart · Connected</span></footer>
+      <footer className="app-footer"><span>© 2026 Africa Zeal University</span><span>Hostel Management System <i /> Safe · Smart · Connected</span></footer>
     </div></main><Toast toast={toast} onClose={() => setToast(null)} /></div>;
 }

@@ -34,10 +34,30 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'azu-hos
 app.post('/api/auth/login', asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
   if (typeof email !== 'string' || typeof password !== 'string') {
+    await store.logAuthentication({
+      email: typeof email === 'string' ? email.slice(0, 190) : null,
+      success: false,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
     return res.status(401).json({ error: 'Incorrect email or password.' });
   }
   const user = await store.authenticate(email, password);
-  if (!user) return res.status(401).json({ error: 'Incorrect email or password.' });
+  if (!user) {
+    await store.logAuthentication({
+      email: email.slice(0, 190),
+      success: false,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+    return res.status(401).json({ error: 'Incorrect email or password.' });
+  }
+  await store.logAuthentication({
+    user,
+    success: true,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
   const token = jwt.sign({ role: user.role }, JWT_SECRET, { subject: user.id, expiresIn: '8h' });
   return res.json({ user, token });
 }));
@@ -63,6 +83,35 @@ app.use('/api', asyncHandler(async (req, res, next) => {
   return next();
 }));
 
+app.post('/api/auth/logout', asyncHandler(async (req, res) => {
+  await store.logAuthentication({
+    user: req.user,
+    success: true,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    action: 'logout',
+  });
+  return res.status(204).end();
+}));
+
+app.get('/api/audit-logs', asyncHandler(async (req, res) => {
+  if (req.user.role !== 'Administrator') {
+    return res.status(403).json({ error: 'Only administrators can view the audit log.' });
+  }
+  const { search = '', action = '', resource = '', limit = '250' } = req.query;
+  const validActions = new Set(['login_success', 'login_failed', 'logout', 'create', 'update', 'delete']);
+  const validResources = new Set([...resources, 'settings', 'authentication']);
+  if (
+    typeof search !== 'string' || search.length > 100 ||
+    (action && (typeof action !== 'string' || !validActions.has(action))) ||
+    (resource && (typeof resource !== 'string' || !validResources.has(resource))) ||
+    !/^\d+$/.test(String(limit))
+  ) {
+    return res.status(400).json({ error: 'Invalid audit log filters.' });
+  }
+  return res.json(await store.listAuditLogs({ search: search.trim(), action, resource, limit: Number(limit) }));
+}));
+
 app.get('/api/settings', asyncHandler(async (_req, res) => res.json(await store.getSettings())));
 app.put('/api/settings', asyncHandler(async (req, res) => {
   if (req.user.role !== 'Administrator') {
@@ -71,7 +120,10 @@ app.put('/api/settings', asyncHandler(async (req, res) => {
   if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
     return res.status(400).json({ error: 'Settings must be a JSON object.' });
   }
-  return res.json(await store.updateSettings(req.body));
+  return res.json(await store.updateSettings(req.body, req.user, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  }));
 }));
 
 app.get('/api/:resource', asyncHandler(async (req, res, next) => {
@@ -90,7 +142,10 @@ app.post('/api/:resource', asyncHandler(async (req, res, next) => {
   if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
     return res.status(400).json({ error: 'Record must be a JSON object.' });
   }
-  return res.status(201).json(await store.create(req.params.resource, req.body));
+  return res.status(201).json(await store.create(req.params.resource, req.body, req.user, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  }));
 }));
 
 app.put('/api/:resource/:id', asyncHandler(async (req, res, next) => {
@@ -101,7 +156,10 @@ app.put('/api/:resource/:id', asyncHandler(async (req, res, next) => {
   if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
     return res.status(400).json({ error: 'Record must be a JSON object.' });
   }
-  const record = await store.update(req.params.resource, req.params.id, req.body);
+  const record = await store.update(req.params.resource, req.params.id, req.body, req.user, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
   return record ? res.json(record) : res.status(404).json({ error: 'Record not found.' });
 }));
 
@@ -110,7 +168,10 @@ app.delete('/api/:resource/:id', asyncHandler(async (req, res, next) => {
   if (!RESOURCE_ROLES[req.params.resource].write.includes(req.user.role)) {
     return res.status(403).json({ error: 'Your account does not have permission to delete this record.' });
   }
-  return (await store.remove(req.params.resource, req.params.id))
+  return (await store.remove(req.params.resource, req.params.id, req.user, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  }))
       ? res.status(204).end()
       : res.status(404).json({ error: 'Record not found.' });
 }));

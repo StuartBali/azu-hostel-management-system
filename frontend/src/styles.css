@@ -174,6 +174,17 @@ tbody tr:hover { background: #fbfcfe; }
 .table-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 17px; border-top: 1px solid var(--line); color: #8995a6; font-size: 9px; }
 .table-footer strong { color: #54627a; font-weight: 600; }
 .table-footer > div { display: flex; gap: 4px; }
+.audit-toolbar select { height: 34px; min-width: 135px; padding: 0 9px; border: 1px solid #e6ebf2; border-radius: 4px; background: white; color: #53627a; font-size: 9px; }
+.audit-table td { vertical-align: top; }
+.audit-table td strong, .audit-table td small { display: block; }
+.audit-table td strong { color: #34425a; font-size: 9px; font-weight: 600; }
+.audit-table td small { max-width: 280px; margin-top: 4px; color: #8a96a7; font-size: 8px; white-space: normal; }
+.audit-action { display: inline-flex; padding: 4px 7px; border-radius: 10px; color: #315f9b; background: #edf4ff; font-size: 8px; font-weight: 600; }
+.audit-login_failed, .audit-delete { color: #b34e4e; background: #fff0ef; }
+.audit-create, .audit-login_success { color: #27835f; background: #eaf7f0; }
+.audit-update, .audit-logout { color: #987121; background: #fff5df; }
+.audit-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px; color: #a14848; font-size: 10px; }
+.audit-error p { margin: 0; }
 .pagination-button { width: 27px; height: 25px; display: grid; place-items: center; border: 1px solid #e6eaf0; border-radius: 4px; background: white; color: #7d899a; }
 .pagination-button:disabled { opacity: .5; cursor: default; }
 .pagination-button.current-page { border-color: var(--navy); color: white; background: var(--navy); }
@@ -269,7 +280,7 @@ tbody tr:hover { background: #fbfcfe; }
   .topbar { height: 58px; padding: 0 13px; }.breadcrumbs { font-size: 10px; gap: 4px; }.academic-year { padding: 7px; }.academic-year span { display: none; }.top-user > div:nth-child(2),.top-user > svg { display: none; }.topbar-actions { gap: 8px; }.top-user { margin-left: 0; }
   .page-content { padding: 24px 14px 0; }.page-heading { align-items: flex-start; flex-direction: column; margin-bottom: 18px; }.page-heading h1 { font-size: 21px; }.page-heading p { max-width: 360px; line-height: 1.5; }.page-heading > .button { align-self: flex-start; }
   .stats-grid { grid-template-columns: 1fr 1fr; gap: 9px; }.stat-card { min-height: 122px; padding: 13px; }.stat-icon { width: 30px; height: 30px; }.stat-title { top: 23px; left: 51px; right: 5px; font-size: 8px; }.stat-value { margin-top: 15px; font-size: 20px; }.stat-note { font-size: 8px; }
-  .dashboard-grid,.dashboard-bottom,.report-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }.occupancy-panel,.activity-panel { min-height: unset; }.chart-area { height: 170px; }.activity-item time { display: block; }.quick-panel,.occupancy-summary { min-height: unset; }.availability-list { gap: 12px; }.availability-list span { font-size: 8px; }.app-footer { flex-direction: column; padding: 19px 0; }.data-toolbar { flex-wrap: wrap; padding: 11px; }.search-field { width: 100%; }.filter-button { order: 2; }.record-count { margin-left: auto; }.data-panel { margin: 0 -2px; }th,td { padding: 10px 11px; }
+  .dashboard-grid,.dashboard-bottom,.report-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }.occupancy-panel,.activity-panel { min-height: unset; }.chart-area { height: 170px; }.activity-item time { display: block; }.quick-panel,.occupancy-summary { min-height: unset; }.availability-list { gap: 12px; }.availability-list span { font-size: 8px; }.app-footer { flex-direction: column; padding: 19px 0; }  .data-toolbar { flex-wrap: wrap; padding: 11px; }.search-field { width: 100%; }.filter-button { order: 2; }.record-count { margin-left: auto; }.data-panel { margin: 0 -2px; }th,td { padding: 10px 11px; }.audit-toolbar select { flex: 1; min-width: 110px; }
   .report-stats { grid-template-columns: 1fr; gap: 9px; }.report-stats .stat-card { min-height: 109px; }.report-stats .stat-title { top: 23px; }.report-stats .stat-value { margin-top: 12px; }
   .settings-panel { padding: 16px; }.settings-form { grid-template-columns: 1fr; }.settings-submit { grid-column: auto; }.modal-fields { grid-template-columns: 1fr; }.record-modal { padding: 17px; }
   .login-page { grid-template-columns: 1fr; }.login-photo { display: none; }.login-form-wrap { min-height: 100vh; padding: 25px; }.brand-compact { margin-bottom: 38px; }.login-copyright { bottom: 13px; }

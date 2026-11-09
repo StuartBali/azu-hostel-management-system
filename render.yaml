@@ -19,7 +19,7 @@ services:
       - key: DB_HOST
         sync: false
       - key: DB_PORT
-        value: "3306"
+        value: "4000"
       - key: DB_USER
         sync: false
       - key: DB_PASSWORD
@@ -27,7 +27,7 @@ services:
       - key: DB_NAME
         sync: false
       - key: DB_SSL
-        sync: false
+        value: "true"
       - key: DB_CREATE_DATABASE
         value: "false"
       - key: IMPORT_JSON_DATA

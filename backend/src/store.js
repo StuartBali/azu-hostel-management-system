@@ -84,6 +84,28 @@ async function insertRecord(connection, resource, record) {
   );
 }
 
+async function insertAuditLog(connection, event) {
+  const actor = event.actor || {};
+  await connection.execute(
+    `INSERT INTO audit_logs
+      (actor_id, actor_name, actor_email, actor_role, action, resource, record_id, summary, changed_fields, ip_address, user_agent)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      actor.id || null,
+      actor.name || null,
+      event.actorEmail || actor.email || null,
+      actor.role || null,
+      event.action,
+      event.resource || null,
+      event.recordId || null,
+      event.summary,
+      JSON.stringify(event.changedFields || []),
+      event.ipAddress || null,
+      event.userAgent ? event.userAgent.slice(0, 255) : null,
+    ],
+  );
+}
+
 function roomStatus(occupied, capacity) {
   if (occupied === 0) return 'Available';
   return occupied >= capacity ? 'Occupied' : 'Partially occupied';
@@ -181,6 +203,24 @@ async function initialize() {
     await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
       version VARCHAR(100) NOT NULL PRIMARY KEY,
       applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS audit_logs (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      actor_id VARCHAR(100) NULL,
+      actor_name VARCHAR(160) NULL,
+      actor_email VARCHAR(190) NULL,
+      actor_role VARCHAR(80) NULL,
+      action VARCHAR(40) NOT NULL,
+      resource VARCHAR(80) NULL,
+      record_id VARCHAR(100) NULL,
+      summary VARCHAR(255) NOT NULL,
+      changed_fields JSON NOT NULL,
+      ip_address VARCHAR(45) NULL,
+      user_agent VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_audit_created_at (created_at),
+      INDEX idx_audit_actor_email (actor_email),
+      INDEX idx_audit_action_resource (action, resource)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
     await migrateJsonData();
@@ -295,6 +335,62 @@ async function authenticate(email, password) {
   return { id: user.id, name: user.name, email: user.email, role: user.role };
 }
 
+async function logAuthentication({ user, email, success, action, ipAddress, userAgent }) {
+  await insertAuditLog(pool, {
+    actor: user,
+    actorEmail: user?.email || email,
+    action: action || (success ? 'login_success' : 'login_failed'),
+    resource: 'authentication',
+    recordId: user?.id,
+    summary: action === 'logout'
+      ? 'User signed out.'
+      : success ? 'User signed in successfully.' : 'A sign-in attempt failed.',
+    ipAddress,
+    userAgent,
+  });
+}
+
+async function listAuditLogs({ search, action, resource, limit = 250 } = {}) {
+  const conditions = [];
+  const parameters = [];
+  if (search) {
+    conditions.push('(actor_name LIKE ? OR actor_email LIKE ? OR summary LIKE ? OR record_id LIKE ?)');
+    const term = `%${search}%`;
+    parameters.push(term, term, term, term);
+  }
+  if (action) {
+    conditions.push('action = ?');
+    parameters.push(action);
+  }
+  if (resource) {
+    conditions.push('resource = ?');
+    parameters.push(resource);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const safeLimit = Math.min(Math.max(Number(limit) || 250, 1), 500);
+  const [rows] = await pool.execute(
+    `SELECT id, actor_id, actor_name, actor_email, actor_role, action, resource,
+      record_id, summary, changed_fields, ip_address, user_agent, created_at
+     FROM audit_logs ${where} ORDER BY id DESC LIMIT ${safeLimit}`,
+    parameters,
+  );
+  return rows.map(row => ({
+    id: row.id,
+    actorId: row.actor_id,
+    actorName: row.actor_name,
+    actorEmail: row.actor_email,
+    actorRole: row.actor_role,
+    action: row.action,
+    resource: row.resource,
+    recordId: row.record_id,
+    summary: row.summary,
+    changedFields: typeof row.changed_fields === 'string' ? JSON.parse(row.changed_fields) : row.changed_fields,
+    ipAddress: row.ip_address,
+    userAgent: row.user_agent,
+    createdAt: row.created_at,
+  }));
+}
+
 async function getActiveUser(id) {
   const [rows] = await pool.execute(
     'SELECT id, name, email, role FROM users WHERE id = ? AND status = ? LIMIT 1',
@@ -316,27 +412,46 @@ async function getSettings() {
   };
 }
 
-async function updateSettings(settings) {
+async function updateSettings(settings, actor, context = {}) {
   const current = await getSettings();
   const updated = { ...current, ...settings };
-  await pool.execute(
-    `INSERT INTO settings (id, university_name, academic_year, default_hostel, contact_email, hostel_options)
-     VALUES (1, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE university_name = VALUES(university_name), academic_year = VALUES(academic_year),
-       default_hostel = VALUES(default_hostel), contact_email = VALUES(contact_email), hostel_options = VALUES(hostel_options)`,
-    [
-      updated.universityName,
-      updated.academicYear,
-      updated.defaultHostel,
-      updated.contactEmail,
-      JSON.stringify(updated.hostelOptions || []),
-    ],
-  );
-  return updated;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute(
+      `INSERT INTO settings (id, university_name, academic_year, default_hostel, contact_email, hostel_options)
+       VALUES (1, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE university_name = VALUES(university_name), academic_year = VALUES(academic_year),
+         default_hostel = VALUES(default_hostel), contact_email = VALUES(contact_email), hostel_options = VALUES(hostel_options)`,
+      [
+        updated.universityName,
+        updated.academicYear,
+        updated.defaultHostel,
+        updated.contactEmail,
+        JSON.stringify(updated.hostelOptions || []),
+      ],
+    );
+    await insertAuditLog(connection, {
+      actor,
+      action: 'update',
+      resource: 'settings',
+      recordId: 'system',
+      summary: 'Updated system settings.',
+      changedFields: Object.keys(settings),
+      ...context,
+    });
+    await connection.commit();
+    return updated;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
-async function create(resource, record) {
-  const id = `${resource.slice(0, 1)}-${require('node:crypto').randomUUID()}`;
+async function create(resource, record, actor, context = {}) {
+  const id = `${resource.slice(0, 1)}-${crypto.randomUUID()}`;
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -366,6 +481,15 @@ async function create(resource, record) {
     if (resource === 'users') {
       await connection.execute('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id]);
     }
+    await insertAuditLog(connection, {
+      actor,
+      action: 'create',
+      resource,
+      recordId: id,
+      summary: `Created a ${resource} record.`,
+      changedFields: Object.keys(safeRecord),
+      ...context,
+    });
     await connection.commit();
     return values;
   } catch (error) {
@@ -376,7 +500,7 @@ async function create(resource, record) {
   }
 }
 
-async function update(resource, id, updates) {
+async function update(resource, id, updates, actor, context = {}) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -428,6 +552,15 @@ async function update(resource, id, updates) {
     if (passwordHash) {
       await connection.execute('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id]);
     }
+    await insertAuditLog(connection, {
+      actor,
+      action: 'update',
+      resource,
+      recordId: id,
+      summary: `Updated a ${resource} record.`,
+      changedFields: [...new Set([...Object.keys(safeUpdates), ...(passwordHash ? ['password'] : [])])],
+      ...context,
+    });
     await connection.commit();
     return values;
   } catch (error) {
@@ -438,7 +571,7 @@ async function update(resource, id, updates) {
   }
 }
 
-async function remove(resource, id) {
+async function remove(resource, id, actor, context = {}) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -458,6 +591,16 @@ async function remove(resource, id) {
       `DELETE FROM ${quoteIdentifier(resource)} WHERE id = ?`,
       [id],
     );
+    if (result.affectedRows > 0) {
+      await insertAuditLog(connection, {
+        actor,
+        action: 'delete',
+        resource,
+        recordId: id,
+        summary: `Deleted a ${resource} record.`,
+        ...context,
+      });
+    }
     await connection.commit();
     return result.affectedRows > 0;
   } catch (error) {
@@ -475,4 +618,17 @@ async function close() {
   }
 }
 
-module.exports = { initialize, close, list, authenticate, getActiveUser, getSettings, updateSettings, create, update, remove };
+module.exports = {
+  initialize,
+  close,
+  list,
+  authenticate,
+  logAuthentication,
+  listAuditLogs,
+  getActiveUser,
+  getSettings,
+  updateSettings,
+  create,
+  update,
+  remove,
+};
