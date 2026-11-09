@@ -34,8 +34,9 @@ services:
         value: "false"
       - key: FRONTEND_ORIGIN
         value: http://localhost:5173
-  - type: static
+  - type: web
     name: azu-hostel-frontend
+    runtime: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
