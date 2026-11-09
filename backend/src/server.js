@@ -28,7 +28,10 @@ if (JWT_SECRET.length < 32) {
   throw new Error('Set JWT_SECRET to a secret of at least 32 characters before starting the server.');
 }
 
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin)),
+  credentials: true,
+}));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'azu-hostel-api' }));
