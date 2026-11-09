@@ -162,7 +162,8 @@ function OccupancyChart({ data }) {
   </div>;
 }
 
-function Dashboard({ data, onNavigate, canWrite, canRead, canViewPayments }) {
+function Dashboard({ data, user, onNavigate, canWrite, canRead, canViewPayments }) {
+  const firstName = user?.name?.trim().split(/\s+/)[0] || 'there';
   const students = data.students || [], rooms = data.rooms || [], payments = data.payments || [], maintenance = data.maintenance || [];
   const totalCapacity = rooms.reduce((sum, room) => sum + Number(room.capacity || 0), 0);
   const occupied = rooms.reduce((sum, room) => sum + Number(room.occupied || 0), 0);
@@ -174,7 +175,7 @@ function Dashboard({ data, onNavigate, canWrite, canRead, canViewPayments }) {
     const beds = hostelRooms.reduce((s, r) => s + Number(r.occupied || 0), 0);
     return { label: h.name.replace(' Hostel', ''), value: capacity ? Math.round(beds / capacity * 100) : 0 };
   }), [data.hostels, rooms]);
-  return <><PageHeading eyebrow="MONDAY, 15 SEPTEMBER 2025" title="Good morning, Admin" subtitle="Here’s what’s happening across your campus accommodation today." action={<button className="button button-outline" onClick={() => onNavigate('Reports')}><Download size={16} /> Export overview</button>} />
+  return <><PageHeading eyebrow="MONDAY, 15 SEPTEMBER 2025" title={`Good morning, ${firstName}`} subtitle={`Signed in as ${user?.role || 'User'}. Here’s what’s happening across your campus accommodation today.`} action={<button className="button button-outline" onClick={() => onNavigate('Reports')}><Download size={16} /> Export overview</button>} />
     <section className={`stats-grid ${canViewPayments ? '' : 'stats-grid-three'}`}>
       <StatCard title="Registered students" value={students.length.toLocaleString()} note="+12% this semester" icon={GraduationCap} tone="blue" />
       <StatCard title="Total bed capacity" value={totalCapacity.toLocaleString()} note={`${rooms.length} rooms across campus`} icon={BedDouble} tone="violet" />
@@ -450,7 +451,7 @@ export default function App() {
   return <div className="app-shell"><Sidebar active={currentPage} setActive={setActive} user={user} onLogout={logout} open={mobileOpen} onClose={() => setMobileOpen(false)} />
     <main className="main-area"><Header title={currentPage} user={user} onMenu={() => setMobileOpen(true)} /><div className="page-content">
       {loading ? <div className="loading-state"><div className="spinner" /><span>Loading your campus overview…</span></div> : loadError ? <div className="error-state"><div className="error-icon"><Activity size={21} /></div><h2>Couldn’t load your campus data</h2><p>{loadError}. Make sure the backend server is running.</p><button className="button button-primary" onClick={refresh}>Try again</button></div> :
-        currentPage === 'Dashboard' ? <Dashboard data={data} onNavigate={setActive} canWrite={canWrite} canRead={canRead} canViewPayments={canViewPayments} /> :
+        currentPage === 'Dashboard' ? <Dashboard data={data} user={user} onNavigate={setActive} canWrite={canWrite} canRead={canRead} canViewPayments={canViewPayments} /> :
           currentPage === 'Reports' ? <Reports data={data} canViewPayments={canViewPayments} /> :
             currentPage === 'Audit Log' ? <AuditLog /> :
             currentPage === 'Settings' ? <SettingsPage initial={settings} onSave={saveSettings} notify={notify} /> :
